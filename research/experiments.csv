@@ -1,0 +1,2 @@
+run_id,timestamp_utc,signal,top_frac,cost_per_side,min_names,n_months,gross_cagr,net_cagr,net_sharpe,net_max_dd,bench_cagr,bench_sharpe,avg_turnover,spread_t_stat,note
+20260705-214914-208b2a,2026-07-05T21:49:14+00:00,mom_12_1,0.1,0.0025,20,114,0.066657,0.049027,0.3261,-0.430781,0.00277,0.1111,0.5572,1.3212,

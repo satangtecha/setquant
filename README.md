@@ -76,11 +76,25 @@ starts later than its first index membership (SCB after the SCBX
 restructuring, GULF after the INTUCH amalgamation) is flagged instead
 of silently shortening the sample.
 
+## Backtest (Phase 2)
+
+```bash
+python scripts/run_momentum.py
+```
+
+Pre-registered hypothesis: 12-1 momentum, long the top decile of
+point-in-time SET100 members, monthly rebalance, 0.25%/side costs,
+vs an equal-weight benchmark of the same universe. The engine enforces
+point-in-time membership and no look-ahead (see tests/test_backtest.py
+— the tests literally construct a stock with a huge future return and
+assert the engine cannot see it). Every run appends to
+`research/experiments.csv` — including the failures.
+
 ## Roadmap
 
-Phase 0 pilot (done) -> Phase 1 warehouse: silver adjustment + QC,
-point-in-time universe (this) -> Phase 2 momentum backtest with
-walk-forward validation and real costs -> Phase 3 write-up.
+Phase 0 pilot (done) -> Phase 1 warehouse + point-in-time universe
+(done) -> Phase 2 momentum backtest with real costs (this) ->
+Phase 3 write-up.
 
 ## Honest limitations so far
 
