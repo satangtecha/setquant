@@ -90,11 +90,21 @@ point-in-time membership and no look-ahead (see tests/test_backtest.py
 assert the engine cannot see it). Every run appends to
 `research/experiments.csv` — including the failures.
 
+## Paper (Phase 3)
+
+The write-up lives in `research/paper/` (LaTeX, compiles on Overleaf).
+Figures and tables are generated from the latest backtest run — no
+hand-typed numbers:
+
+```bash
+python scripts/run_momentum.py        # produce/refresh a run
+python scripts/make_paper_assets.py   # regenerate figures + .tex tables
+```
+
 ## Roadmap
 
-Phase 0 pilot (done) -> Phase 1 warehouse + point-in-time universe
-(done) -> Phase 2 momentum backtest with real costs (this) ->
-Phase 3 write-up.
+Phase 0 pilot -> Phase 1 warehouse + point-in-time universe ->
+Phase 2 momentum backtest -> Phase 3 paper (all done; polishing).
 
 ## Honest limitations so far
 
