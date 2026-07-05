@@ -23,6 +23,19 @@ def connect(bronze_dir: Path | None = None) -> duckdb.DuckDBPyConnection:
         f"CREATE OR REPLACE VIEW bronze_prices AS "
         f"SELECT * FROM read_parquet('{pattern}')"
     )
+
+    silver = config.SILVER_DIR / "prices.parquet"
+    if silver.exists():
+        con.execute(
+            f"CREATE OR REPLACE VIEW silver_prices AS "
+            f"SELECT * FROM read_parquet('{silver.as_posix()}')"
+        )
+    gold = config.GOLD_DIR / "monthly.parquet"
+    if gold.exists():
+        con.execute(
+            f"CREATE OR REPLACE VIEW gold_monthly AS "
+            f"SELECT * FROM read_parquet('{gold.as_posix()}')"
+        )
     return con
 
 

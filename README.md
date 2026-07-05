@@ -24,19 +24,16 @@ Yahoo Finance (.BK tickers)
 Query layer: **DuckDB over Parquet** — no database server needed.
 The Parquet files on disk are the single source of truth.
 
-## Quickstart (Phase 0)
+## Quickstart
 
 ```bash
 # 1. install dependencies (Python 3.10+)
 pip install duckdb yfinance pandas pytest
 
-# 2. download the 5 pilot tickers into data/bronze/
-python scripts/ingest_pilot.py
+# 2. rebuild the whole warehouse: ingest -> silver -> gold + QC report
+python scripts/build_warehouse.py
 
-# 3. sanity-check the warehouse through DuckDB
-python scripts/query_demo.py
-
-# 4. run tests (offline — synthetic data, no network needed)
+# 3. run tests (offline — synthetic data, no network needed)
 python -m pytest -q
 ```
 
@@ -51,17 +48,37 @@ No install of the package itself is needed — scripts and tests locate
 - `src/setquant/research/` — notebooks and write-ups
 - `tests/` — offline unit tests
 
+## The universe file (survivorship-bias control)
+
+`reference/universe_set100.csv` defines point-in-time index membership:
+one row per (index, half-year period, symbol). A backtest at date t only
+sees stocks that were members at t — including stocks that later
+dropped out or were delisted.
+
+The data is transcribed from SET's official constituent lists
+(set.or.th -> Market Data -> List of Companies, Constituents and ISIN
+-> **List of Index Constituents**; free member login), one PDF per
+half-year, 2016H1-2026H2. `scripts/parse_universe_pdfs.py` parses the
+PDFs (dropped into `reference/raw/`, which is gitignored) and enforces
+two validators before writing anything: every period must contain row
+numbers 1..100 exactly, and the 100 symbols must be strictly
+alphabetical — the ordering the documents themselves guarantee. Revised
+mid-period lists (mergers, restructurings) supersede the original for
+the whole period; a simplification noted in the write-up.
+
 ## Roadmap
 
-Phase 0 pilot (this) -> Phase 1 full SET100 warehouse with
-survivorship-bias handling -> Phase 2 momentum backtest with
+Phase 0 pilot (done) -> Phase 1 warehouse: silver adjustment + QC,
+point-in-time universe (this) -> Phase 2 momentum backtest with
 walk-forward validation and real costs -> Phase 3 write-up.
 
 ## Honest limitations so far
 
-- Yahoo Finance data quality for SET is unverified; cross-checking
-  against a second source is planned in Phase 1.
-- Bronze stores unadjusted prices plus dividend/split events;
-  adjustment logic arrives with the silver layer.
-- Historical SET100 membership is not handled yet (survivorship bias) —
-  this is the core Phase 1 problem.
+- Symbol renames (e.g. TMB -> TTB in 2021) are not yet linked into a
+  single entity history.
+- Yahoo Finance may lack price history for some delisted past members;
+  coverage will be quantified against SET's delisting statistics before
+  any backtest result is trusted.
+- Our own adjusted close is cross-checked against the vendor's
+  (`adj_median_rel_diff` in the QC report); large disagreement means
+  the events data is wrong somewhere — investigate, don't average.

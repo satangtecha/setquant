@@ -60,3 +60,45 @@ def save_bronze(df: pd.DataFrame, ticker: str, bronze_dir: Path | None = None) -
     con.execute(f"COPY bronze_df TO '{path.as_posix()}' (FORMAT parquet)")
     con.close()
     return path
+
+
+def ingest_many(
+    tickers: list[str],
+    bronze_dir: Path | None = None,
+    force: bool = False,
+    retries: int = 2,
+    pause_seconds: float = 1.0,
+) -> dict:
+    """Download many tickers, resiliently.
+
+    - Skips tickers whose bronze file already exists (unless force=True),
+      so re-running never re-spends requests on data we already have.
+    - Retries transient failures, then moves on; one bad ticker must
+      not kill a 100-ticker run. Failures are reported, not hidden.
+    """
+    import time
+
+    out_dir = Path(bronze_dir) if bronze_dir is not None else config.BRONZE_DIR
+    done, skipped, failed = [], [], {}
+
+    for ticker in tickers:
+        target = out_dir / f"{ticker}.parquet"
+        if target.exists() and not force:
+            skipped.append(ticker)
+            continue
+
+        last_error = None
+        for attempt in range(retries + 1):
+            try:
+                df = fetch_ohlcv(ticker)
+                save_bronze(df, ticker, bronze_dir=out_dir)
+                done.append(ticker)
+                last_error = None
+                break
+            except Exception as exc:  # noqa: BLE001 - we report, not hide
+                last_error = exc
+                time.sleep(pause_seconds * (attempt + 1))
+        if last_error is not None:
+            failed[ticker] = str(last_error)
+
+    return {"done": done, "skipped": skipped, "failed": failed}
