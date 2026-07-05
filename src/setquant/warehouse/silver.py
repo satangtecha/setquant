@@ -24,6 +24,7 @@ from setquant import config
 MARKET_DAY_QUORUM = 0.30   # a date is a market day if >=30% of tickers traded
 EXTREME_DAILY_RETURN = 0.50
 ADJ_MISMATCH_TOL = 0.005   # 0.5% median disagreement with vendor adj_close
+MIN_USABLE_ROWS = 60       # shorter series (e.g. a 1-row download) are excluded
 
 
 def _load_bronze(bronze_dir: Path) -> pd.DataFrame:
@@ -63,7 +64,6 @@ def _adjust_one(g: pd.DataFrame) -> pd.DataFrame:
     adj_factor = cum.shift(-1).fillna(1.0)
 
     g["adj_close_own"] = g["close"] * adj_factor
-    g["ret"] = g["adj_close_own"].pct_change()
     return g
 
 
@@ -80,7 +80,11 @@ def _qc_flags(g: pd.DataFrame, calendar: pd.DatetimeIndex) -> pd.DataFrame:
     return g
 
 
-def build_silver(bronze_dir: Path | None = None, silver_dir: Path | None = None) -> Path:
+def build_silver(
+    bronze_dir: Path | None = None,
+    silver_dir: Path | None = None,
+    min_rows: int = MIN_USABLE_ROWS,
+) -> Path:
     """Bronze -> silver. Returns the path of silver/prices.parquet."""
     bronze = Path(bronze_dir) if bronze_dir is not None else config.BRONZE_DIR
     out_dir = Path(silver_dir) if silver_dir is not None else config.SILVER_DIR
@@ -91,7 +95,28 @@ def build_silver(bronze_dir: Path | None = None, silver_dir: Path | None = None)
 
     frames, qc_rows = [], []
     for ticker, g in raw.groupby("ticker"):
+        if len(g) < min_rows:
+            qc_rows.append({
+                "ticker": ticker, "rows": len(g),
+                "first_day": g["date"].min(), "last_day": g["date"].max(),
+                "missing_market_days": 0, "bad_ohlc": 0, "extreme_returns": 0,
+                "adj_median_rel_diff": float("nan"),
+                "adj_source": "none", "usable": False,
+            })
+            continue
+
         g = _adjust_one(g)
+
+        # Vendor adj_close is the primary return source: Yahoo's event
+        # feed for SET misses some splits/par changes, but its adj_close
+        # is adjusted anyway. Our own series stays as the cross-check.
+        if "adj_close" in g.columns and g["adj_close"].notna().any():
+            g["adj_close_used"], adj_source = g["adj_close"], "vendor"
+        else:
+            g["adj_close_used"], adj_source = g["adj_close_own"], "own"
+        g["adj_source"] = adj_source
+        g["ret"] = g["adj_close_used"].pct_change()
+
         g = _qc_flags(g, calendar)
 
         active = calendar[(calendar >= g["date"].min()) & (calendar <= g["date"].max())]
@@ -109,9 +134,12 @@ def build_silver(bronze_dir: Path | None = None, silver_dir: Path | None = None)
                 float(g["adj_rel_diff"].median())
                 if g["adj_rel_diff"].notna().any() else float("nan")
             ),
+            "adj_source": adj_source, "usable": True,
         })
         frames.append(g)
 
+    if not frames:
+        raise ValueError("no usable tickers after the min_rows filter")
     prices = pd.concat(frames, ignore_index=True)
     qc = pd.DataFrame(qc_rows)
 

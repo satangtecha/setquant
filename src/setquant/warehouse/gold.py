@@ -21,13 +21,13 @@ def build_gold(silver_dir: Path | None = None, gold_dir: Path | None = None) -> 
 
     con = duckdb.connect()
     prices = con.execute(
-        f"SELECT date, ticker, adj_close_own FROM read_parquet('{(silver / 'prices.parquet').as_posix()}')"
+        f"SELECT date, ticker, adj_close_used FROM read_parquet('{(silver / 'prices.parquet').as_posix()}')"
     ).df()
 
     frames = []
     for ticker, g in prices.groupby("ticker"):
         m = (
-            g.set_index("date")["adj_close_own"]
+            g.set_index("date")["adj_close_used"]
             .sort_index()
             .resample("ME")
             .last()

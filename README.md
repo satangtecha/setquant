@@ -66,6 +66,16 @@ alphabetical — the ordering the documents themselves guarantee. Revised
 mid-period lists (mergers, restructurings) supersede the original for
 the whole period; a simplification noted in the write-up.
 
+## Symbol aliases and coverage gaps
+
+`reference/symbol_aliases.csv` maps renamed/restructured symbols to
+where their history lives today (TMB -> TTB, MTLS -> MTC, ...). Without
+it, renamed stocks silently vanish from backtests. The build also
+prints a **membership coverage gap** report: any stock whose data
+starts later than its first index membership (SCB after the SCBX
+restructuring, GULF after the INTUCH amalgamation) is flagged instead
+of silently shortening the sample.
+
 ## Roadmap
 
 Phase 0 pilot (done) -> Phase 1 warehouse: silver adjustment + QC,
@@ -79,6 +89,9 @@ walk-forward validation and real costs -> Phase 3 write-up.
 - Yahoo Finance may lack price history for some delisted past members;
   coverage will be quantified against SET's delisting statistics before
   any backtest result is trusted.
-- Our own adjusted close is cross-checked against the vendor's
-  (`adj_median_rel_diff` in the QC report); large disagreement means
-  the events data is wrong somewhere — investigate, don't average.
+- Returns are computed from the vendor's adjusted close: Yahoo's SET
+  event feed misses some splits/par changes, so our own event-based
+  adjustment (kept as `adj_close_own`) disagrees badly on ~12 names —
+  the `adj_median_rel_diff` QC column documents exactly where.
+- Series shorter than 60 rows are excluded from silver (`usable=False`
+  in the QC report) and re-fetched on the next build.

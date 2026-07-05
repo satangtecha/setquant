@@ -40,3 +40,19 @@ def test_invalid_period_raises(tmp_path):
 
 def test_to_yahoo():
     assert to_yahoo("ptt") == "PTT.BK"
+
+
+def test_aliases_resolve_and_reject_chains(tmp_path):
+    from setquant.universe import load_aliases, to_data_symbol
+
+    p = tmp_path / "aliases.csv"
+    p.write_text("old_symbol,new_symbol,note\nTMB,TTB,rename\n")
+    aliases = load_aliases(p)
+    assert to_data_symbol("tmb", aliases) == "TTB"
+    assert to_data_symbol("PTT", aliases) == "PTT"
+
+    bad = tmp_path / "chained.csv"
+    bad.write_text("old_symbol,new_symbol,note\nA,B,x\nB,C,y\n")
+    import pytest
+    with pytest.raises(ValueError, match="chained"):
+        load_aliases(bad)

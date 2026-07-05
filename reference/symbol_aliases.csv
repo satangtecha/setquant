@@ -1,0 +1,8 @@
+old_symbol,new_symbol,note
+TMB,TTB,renamed 2021 (TMB+Thanachart -> ttb); Yahoo keeps full history under TTB
+MTLS,MTC,renamed 2018 (Muangthai Leasing -> Muangthai Capital)
+PS,PSH,Pruksa restructuring 2016; PSH history starts 2016-12 so Jan-Nov 2016 stays missing
+JWD,SJWD,JWD merged with SCGJWD/SCG Logistics 2023; Yahoo migrated history to SJWD
+STEC,STECON,Sino-Thai restructured to STECON 2024; pre-2024 history not on Yahoo
+LHBANK,LHFG,LH Bank under LH Financial Group holding; verify Yahoo coverage
+TICON,FPT,TICON renamed Frasers Property Thailand 2019; verify Yahoo coverage

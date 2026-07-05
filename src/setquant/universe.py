@@ -69,3 +69,37 @@ def all_symbols(periods: pd.DataFrame, index_name: str | None = None) -> list[st
 def to_yahoo(symbol: str) -> str:
     """SET symbol -> Yahoo Finance ticker (PTT -> PTT.BK)."""
     return f"{symbol.upper()}.BK"
+
+
+ALIASES_CSV = config.REPO_ROOT / "reference" / "symbol_aliases.csv"
+
+
+def load_aliases(path: Path | None = None) -> dict[str, str]:
+    """old SET symbol -> the symbol its price history lives under today.
+
+    Renames and restructurings (TMB -> TTB, MTLS -> MTC, ...) leave the
+    old symbol in past constituent lists while the vendor serves the
+    history under the new one. Without this map those stocks silently
+    drop out of backtests — a survivorship bias through the back door.
+    """
+    csv = Path(path) if path is not None else ALIASES_CSV
+    if not csv.exists():
+        return {}
+    df = pd.read_csv(csv)
+    missing = [c for c in ("old_symbol", "new_symbol") if c not in df.columns]
+    if missing:
+        raise ValueError(f"{csv.name}: missing columns {missing}")
+
+    aliases = {
+        str(o).strip().upper(): str(n).strip().upper()
+        for o, n in zip(df["old_symbol"], df["new_symbol"])
+    }
+    chained = set(aliases) & set(aliases.values())
+    if chained:
+        raise ValueError(f"{csv.name}: chained aliases not allowed: {chained}")
+    return aliases
+
+
+def to_data_symbol(symbol: str, aliases: dict[str, str]) -> str:
+    """Resolve a universe symbol to the symbol its data lives under."""
+    return aliases.get(symbol.strip().upper(), symbol.strip().upper())

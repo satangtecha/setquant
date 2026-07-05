@@ -13,7 +13,7 @@ def test_momentum_12_1(tmp_path):
         "date": dates,
         "ticker": "TST",
         # +1% per business day -> known monthly structure
-        "adj_close_own": 100.0 * (1.01 ** np.arange(len(dates))),
+        "adj_close_used": 100.0 * (1.01 ** np.arange(len(dates))),
     })
     silver = tmp_path / "silver"
     silver.mkdir()

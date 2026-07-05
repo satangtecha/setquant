@@ -37,7 +37,7 @@ def test_dividend_adjustment_makes_total_return_flat(tmp_path):
     dividends = [0, 0, 0, 5, 0, 0]
     _write_bronze(_bronze_frame("DIV", closes, dividends=dividends), tmp_path, "DIV")
 
-    path = build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver")
+    path = build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver", min_rows=0)
     silver = pd.read_parquet(path) if False else duckdb.connect().execute(
         f"SELECT * FROM read_parquet('{path.as_posix()}')").df()
 
@@ -51,7 +51,7 @@ def test_split_adjustment_makes_return_flat(tmp_path):
     splits = [0, 0, 2.0, 0]
     _write_bronze(_bronze_frame("SPL", closes, splits=splits), tmp_path, "SPL")
 
-    path = build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver")
+    path = build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver", min_rows=0)
     silver = duckdb.connect().execute(
         f"SELECT * FROM read_parquet('{path.as_posix()}')").df()
 
@@ -64,8 +64,36 @@ def test_bad_ohlc_is_flagged_not_fixed(tmp_path):
     df.loc[2, "high"] = 90  # high < low: impossible bar
     _write_bronze(df, tmp_path, "BAD")
 
-    build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver")
+    build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver", min_rows=0)
     qc = duckdb.connect().execute(
         f"SELECT * FROM read_parquet('{(tmp_path / 'silver' / 'qc_summary.parquet').as_posix()}')").df()
 
     assert int(qc.loc[qc["ticker"] == "BAD", "bad_ohlc"].iloc[0]) == 1
+
+
+def test_short_series_excluded_but_reported(tmp_path):
+    _write_bronze(_bronze_frame("STUB", [100, 100]), tmp_path, "STUB")
+    _write_bronze(_bronze_frame("GOOD", [100.0 + i * 0.1 for i in range(80)]), tmp_path, "GOOD")
+
+    build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver", min_rows=60)
+    con = duckdb.connect()
+    silver = con.execute(
+        f"SELECT DISTINCT ticker FROM read_parquet('{(tmp_path / 'silver' / 'prices.parquet').as_posix()}')").df()
+    qc = con.execute(
+        f"SELECT * FROM read_parquet('{(tmp_path / 'silver' / 'qc_summary.parquet').as_posix()}')").df()
+
+    assert list(silver["ticker"]) == ["GOOD"]                # STUB kept out of research data
+    assert not bool(qc.set_index("ticker").loc["STUB", "usable"])   # ...but visible in QC
+
+
+def test_vendor_adj_close_is_primary_when_present(tmp_path):
+    df = _bronze_frame("VEND", [100.0 + i for i in range(70)])
+    df["adj_close"] = df["close"] * 0.5   # vendor-adjusted series, clearly different
+    _write_bronze(df, tmp_path, "VEND")
+
+    path = build_silver(bronze_dir=tmp_path, silver_dir=tmp_path / "silver", min_rows=0)
+    silver = duckdb.connect().execute(
+        f"SELECT * FROM read_parquet('{path.as_posix()}')").df()
+
+    assert (silver["adj_source"] == "vendor").all()
+    assert (silver["adj_close_used"] == silver["adj_close"]).all()

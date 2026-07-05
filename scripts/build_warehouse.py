@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from setquant import config
 from setquant.ingest.yahoo import ingest_many
-from setquant.universe import all_symbols, load_periods, to_yahoo
+from setquant.universe import all_symbols, load_aliases, load_periods, to_data_symbol, to_yahoo
 from setquant.warehouse.gold import build_gold
 from setquant.warehouse.silver import build_silver
 
@@ -25,9 +25,12 @@ def main() -> None:
     args = ap.parse_args()
 
     periods = load_periods()
+    aliases = load_aliases()
     placeholder = periods["source"].str.contains("placeholder").any()
-    tickers = [to_yahoo(s) for s in all_symbols(periods)]
-    print(f"universe: {len(tickers)} symbols"
+    data_symbols = sorted({to_data_symbol(s, aliases) for s in all_symbols(periods)})
+    tickers = [to_yahoo(s) for s in data_symbols]
+    print(f"universe: {periods['symbol'].nunique()} symbols "
+          f"-> {len(tickers)} data symbols after {len(aliases)} aliases"
           + ("  [WARNING: placeholder universe — see README]" if placeholder else ""))
 
     if not args.offline:
@@ -50,6 +53,12 @@ def main() -> None:
                      + (config.SILVER_DIR / "qc_summary.parquet").as_posix()
                      + "')").df()
     print(qc.to_string(index=False))
+    from setquant.warehouse.coverage import membership_gaps
+    gaps = membership_gaps(periods, aliases)
+    problems = gaps[gaps["status"] != "ok"]
+    print(f"\nmembership coverage gaps ({len(problems)} of {len(gaps)} symbols):")
+    print(problems.to_string(index=False) if len(problems) else "  none")
+
     print("\ngold_monthly sample:")
     print(con.execute(
         "SELECT * FROM gold_monthly WHERE mom_12_1 IS NOT NULL ORDER BY date DESC LIMIT 5"

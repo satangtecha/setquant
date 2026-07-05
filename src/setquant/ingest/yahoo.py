@@ -68,6 +68,7 @@ def ingest_many(
     force: bool = False,
     retries: int = 2,
     pause_seconds: float = 1.0,
+    min_rows: int = 60,
 ) -> dict:
     """Download many tickers, resiliently.
 
@@ -84,8 +85,15 @@ def ingest_many(
     for ticker in tickers:
         target = out_dir / f"{ticker}.parquet"
         if target.exists() and not force:
-            skipped.append(ticker)
-            continue
+            con = duckdb.connect()
+            n = con.execute(
+                f"SELECT count(*) FROM read_parquet('{target.as_posix()}')"
+            ).fetchone()[0]
+            con.close()
+            if n >= min_rows:
+                skipped.append(ticker)
+                continue
+            # else: broken/stub file (e.g. a 1-row download) -> re-fetch
 
         last_error = None
         for attempt in range(retries + 1):
