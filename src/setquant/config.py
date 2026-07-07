@@ -10,5 +10,5 @@ GOLD_DIR = DATA_DIR / "gold"
 # Phase 0: five liquid SET large caps with long history.
 PILOT_TICKERS = ["PTT.BK", "AOT.BK", "CPALL.BK", "KBANK.BK", "ADVANC.BK"]
 
-# 10 years of daily data (scope allows cutting to 7y if time runs short).
-START_DATE = "2016-01-01"
+# Full sample: universe files start 2005H1 (pre-registered extension).
+START_DATE = "2005-01-01"

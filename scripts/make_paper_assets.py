@@ -103,9 +103,16 @@ def registry_table() -> str | None:
     if not reg.exists():
         return None
     df = pd.read_csv(reg)
+
+    def esc(x) -> str:
+        """LaTeX-safe cell text: escape underscores, blank out NaN."""
+        if pd.isna(x):
+            return ""
+        return str(x).replace("_", "\\_")
+
     lines = [
-        f"{r.run_id} & {r.signal} & {r.top_frac} & {r.cost_per_side*100:.2f}\\% "
-        f"& {r.net_cagr*100:.2f}\\% & {r.net_sharpe:.2f} & {str(getattr(r, 'note', ''))[:28]} \\\\"
+        f"{esc(r.run_id)} & {esc(r.signal)} & {r.top_frac} & {r.cost_per_side*100:.2f}\\% "
+        f"& {r.net_cagr*100:.2f}\\% & {r.net_sharpe:.2f} & {esc(getattr(r, 'note', ''))[:28]} \\\\"
         for r in df.itertuples()
     ]
     return (

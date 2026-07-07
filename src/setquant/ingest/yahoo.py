@@ -69,6 +69,7 @@ def ingest_many(
     retries: int = 2,
     pause_seconds: float = 1.0,
     min_rows: int = 60,
+    stale_days: int | None = None,
 ) -> dict:
     """Download many tickers, resiliently.
 
@@ -90,10 +91,21 @@ def ingest_many(
                 f"SELECT count(*) FROM read_parquet('{target.as_posix()}')"
             ).fetchone()[0]
             con.close()
-            if n >= min_rows:
+            fresh = True
+            if stale_days is not None:
+                con2 = duckdb.connect()
+                last = con2.execute(
+                    f"SELECT max(date) FROM read_parquet('{target.as_posix()}')"
+                ).fetchone()[0]
+                con2.close()
+                import datetime as _dt
+                fresh = last is not None and (
+                    _dt.date.today() - pd.Timestamp(last).date()
+                ).days <= stale_days
+            if n >= min_rows and fresh:
                 skipped.append(ticker)
                 continue
-            # else: broken/stub file (e.g. a 1-row download) -> re-fetch
+            # else: broken/stub or stale file -> re-fetch
 
         last_error = None
         for attempt in range(retries + 1):

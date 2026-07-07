@@ -35,6 +35,7 @@ def build_gold(silver_dir: Path | None = None, gold_dir: Path | None = None) -> 
         )
         m["monthly_ret"] = m["adj_close"].pct_change()
         m["mom_12_1"] = m["adj_close"].shift(1) / m["adj_close"].shift(12) - 1
+        m["mom_6_1"] = m["adj_close"].shift(1) / m["adj_close"].shift(6) - 1
         m["ticker"] = ticker
         frames.append(m.reset_index().rename(columns={"index": "date"}))
 

@@ -101,6 +101,21 @@ python scripts/run_momentum.py        # produce/refresh a run
 python scripts/make_paper_assets.py   # regenerate figures + .tex tables
 ```
 
+## Live paper trading
+
+A real-time, out-of-sample log. On the 1st of each month:
+
+```bash
+python scripts/paper_trade.py
+git add research/live ; git commit -m "Paper trade YYYY-MM" ; git push
+```
+
+The script refreshes prices, settles last month's realized return
+against the benchmark, forms the new top-decile portfolio and writes
+BUY/SELL orders plus an append-only audit log under `research/live/`.
+One rebalance per month — the script refuses to run twice. The git
+history is the proof that nothing was edited after the fact.
+
 ## Roadmap
 
 Phase 0 pilot -> Phase 1 warehouse + point-in-time universe ->
